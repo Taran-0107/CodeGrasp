@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Semantic Ingestion Hub - AST Parser Tester</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #070a13;
+            --card-bg: rgba(17, 24, 39, 0.7);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --accent-teal: #14b8a6;
+            --accent-purple: #a855f7;
+            --accent-orange: #f97316;
+            --accent-red: #ef4444;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --editor-bg: #0d111d;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            overflow-x: hidden;
+            min-height: 100vh;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(168, 85, 247, 0.15) 0%, transparent 45%);
+            background-attachment: fixed;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        /* Header Layout */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 24px;
+        }
+
+        .logo-section h1 {
+            font-size: 24px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #a855f7, #6366f1, #14b8a6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+
+        .logo-section p {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .status-badge {
+            background-color: rgba(20, 184, 166, 0.1);
+            color: var(--accent-teal);
+            border: 1px solid rgba(20, 184, 166, 0.2);
+            padding: 6px 12px;
+            border-radius: 99px;
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent-teal);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(20, 184, 166, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(20, 184, 166, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(20, 184, 166, 0); }
+        }
+
+        /* Grid Workspace */
+        .workspace {
+            display: grid;
+            grid-template-columns: 1fr 1.2fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 1100px) {
+            .workspace {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Card panels */
+        .panel {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(16px);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .panel-title {
+            font-size: 18px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        /* Form Fields */
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-group label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .input-field {
+            background-color: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: var(--text-main);
+            font-family: inherit;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+            background-color: rgba(255, 255, 255, 0.06);
+        }
+
+        /* Editor Section */
+        .editor-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .editor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .editor-header label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .code-textarea {
+            background-color: var(--editor-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            color: #e2e8f0;
+            font-family: 'Fira Code', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            resize: vertical;
+            min-height: 200px;
+            width: 100%;
+        }
+
+        .code-textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        /* Action Buttons */
+        .btn {
+            background: linear-gradient(135deg, var(--primary), #8b5cf6);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 14px 24px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.4);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px 0 rgba(99, 102, 241, 0.6);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        /* Tabs Navigation */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            gap: 16px;
+        }
+
+        .tab {
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 14px;
+            padding: 8px 4px 12px 4px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        /* AST Output View */
+        .tab-content {
+            display: none;
+            flex-direction: column;
+            gap: 16px;
+            min-height: 400px;
+        }
+
+        .tab-content.active {
+            display: flex;
+        }
+
+        /* AST Cards Grid */
+        .ast-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            max-height: 550px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .ast-card {
+            background-color: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .ast-card:hover {
+            background-color: rgba(255, 255, 255, 0.04);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .ast-card.modified-entity {
+            border-left: 4px solid var(--accent-orange);
+            background: linear-gradient(90deg, rgba(249, 115, 22, 0.05) 0%, transparent 100%);
+        }
+
+        .ast-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .entity-name-section {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .entity-name {
+            font-family: 'Fira Code', monospace;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .badge {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 3px 8px;
+            border-radius: 4px;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-class { background-color: rgba(99, 102, 241, 0.15); color: #818cf8; }
+        .badge-function { background-color: rgba(20, 184, 166, 0.15); color: #2dd4bf; }
+        .badge-import { background-color: rgba(168, 85, 247, 0.15); color: #c084fc; }
+
+        .badge-modified { background-color: rgba(249, 115, 22, 0.15); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.3); }
+        .badge-unchanged { background-color: rgba(156, 163, 175, 0.1); color: #d1d5db; }
+
+        .entity-meta {
+            font-size: 12px;
+            color: var(--text-muted);
+            display: flex;
+            gap: 16px;
+        }
+
+        .entity-deps {
+            font-size: 12px;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+            padding: 8px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .entity-deps span {
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .entity-deps ul {
+            list-style: none;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 4px;
+        }
+
+        .dep-tag {
+            font-family: 'Fira Code', monospace;
+            font-size: 11px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #cbd5e1;
+        }
+
+        .view-code-btn {
+            align-self: flex-end;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .view-code-btn:hover {
+            border-color: var(--primary);
+            color: var(--text-main);
+        }
+
+        /* Code Viewer Modal / Drawer */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: var(--editor-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            width: 80%;
+            max-width: 800px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            font-family: 'Fira Code', monospace;
+            font-size: 15px;
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 24px;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .modal-close:hover {
+            color: var(--accent-red);
+        }
+
+        .modal-body {
+            padding: 24px;
+            overflow-y: auto;
+        }
+
+        .modal-body pre {
+            margin: 0;
+            font-family: 'Fira Code', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #cbd5e1;
+            white-space: pre-wrap;
+        }
+
+        /* Response Log View */
+        .log-box {
+            background-color: var(--editor-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            color: #38bdf8;
+            font-family: 'Fira Code', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            max-height: 550px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            flex-grow: 1;
+        }
+
+        /* Empty States */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            height: 350px;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        .empty-state svg {
+            width: 48px;
+            height: 48px;
+            stroke: var(--text-muted);
+            opacity: 0.5;
+        }
+
+        /* Scrollbar styles */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="logo-section">
+                <h1>Semantic Ingestion Hub</h1>
+                <p>AI-Powered Semantic Engineering Intelligence — Phase 1 Pipeline Testing Dashboard</p>
+            </div>
+            <div class="status-badge">
+                <span class="status-dot"></span>
+                FastAPI Gateway Active
+            </div>
+        </header>
+
+        <!-- Main Workspace -->
+        <div class="workspace">
+            <!-- Left Column: Input Form / Mock Payload -->
+            <div class="panel">
+                <div class="panel-title">
+                    <span>GitLab Webhook Configuration</span>
+                    <span style="font-size:12px; color:var(--text-muted); font-weight:normal;">Mock API Active</span>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="repo-name">GitLab Repository</label>
+                        <input type="text" id="repo-name" class="input-field" value="ai-ops/semantic-intelligence-engine">
+                    </div>
+                    <div class="form-group">
+                        <label for="mr-iid">Merge Request IID</label>
+                        <input type="number" id="mr-iid" class="input-field" value="42">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="commit-sha">Last Commit SHA</label>
+                        <input type="text" id="commit-sha" class="input-field" value="abc123commitsha">
+                    </div>
+                    <div class="form-group">
+                        <label for="file-path">File Path</label>
+                        <input type="text" id="file-path" class="input-field" value="example_math.py">
+                    </div>
+                </div>
+
+                <div class="editor-container">
+                    <div class="editor-header">
+                        <label for="raw-code">Source Code Editor (Python)</label>
+                    </div>
+                    <textarea id="raw-code" class="code-textarea" spellcheck="false">import math
+from os import path
+
+class Calculator:
+    def __init__(self):
+        self.history = []
+
+    def add(self, a, b):
+        result = a + b
+        self.history.append(f"Add: {a} + {b} = {result}")
+        return result
+
+    def multiply(self, a, b):
+        result = a * b
+        self.history.append(f"Multiply: {a} * {b} = {result}")
+        return result
+
+def calculate_average(numbers):
+    total = sum(numbers)
+    count = len(numbers)
+    return total / count
+</textarea>
+                </div>
+
+                <div class="editor-container">
+                    <div class="editor-header">
+                        <label for="diff-code">Unified Diff Editor</label>
+                    </div>
+                    <textarea id="diff-code" class="code-textarea" style="min-height: 120px;" spellcheck="false">--- a/example_math.py
++++ b/example_math.py
+@@ -10,6 +10,8 @@
+     def multiply(self, a, b):
+-        result = a * b
+-        return result
++        result = a * b
++        self.history.append(f"Multiply: {a} * {b} = {result}")
++        return result
+</textarea>
+                </div>
+
+                <button id="trigger-btn" class="btn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                    Simulate Webhook Event
+                </button>
+            </div>
+
+            <!-- Right Column: Visualization & Console -->
+            <div class="panel">
+                <nav class="tabs">
+                    <span class="tab active" data-tab="ast-tab">AST Entities</span>
+                    <span class="tab" data-tab="response-tab">Server Response</span>
+                    <span class="tab" data-tab="payload-tab">Raw Hook Payload</span>
+                </nav>
+
+                <!-- AST Tab -->
+                <div id="ast-tab" class="tab-content active">
+                    <div id="ast-empty" class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="22" y1="12" x2="2" y2="12"></line>
+                            <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+                        </svg>
+                        <p>No webhook events simulated yet. Click "Simulate Webhook Event" on the left to trigger the parsing pipeline.</p>
+                    </div>
+                    <div id="ast-grid" class="ast-grid" style="display: none;">
+                        <!-- Cards injected here -->
+                    </div>
+                </div>
+
+                <!-- Server Response Tab -->
+                <div id="response-tab" class="tab-content">
+                    <div id="log-box" class="log-box">Waiting for events...</div>
+                </div>
+
+                <!-- Raw Payload Tab -->
+                <div id="payload-tab" class="tab-content">
+                    <pre id="payload-box" class="log-box" style="color: #a7f3d0;"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Code Viewer Modal -->
+    <div id="code-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">Entity Code Snippet</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <pre><code id="modal-code"></code></pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tab switching
+        const tabs = document.querySelectorAll('.tab');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                tab.classList.add('active');
+                document.getElementById(tab.getAttribute('data-tab')).classList.add('active');
+            });
+        });
+
+        // Trigger simulation
+        const triggerBtn = document.getElementById('trigger-btn');
+        triggerBtn.addEventListener('click', async () => {
+            triggerBtn.disabled = true;
+            triggerBtn.innerHTML = `
+                <svg style="animation: spin 1s linear infinite" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <line x1="12" y1="2" x2="12" y2="6"></line>
+                    <line x1="12" y1="18" x2="12" y2="22"></line>
+                    <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+                    <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+                    <line x1="2" y1="12" x2="6" y2="12"></line>
+                    <line x1="18" y1="12" x2="22" y2="12"></line>
+                    <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+                    <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+                </svg>
+                Processing...
+            `;
+
+            const repoName = document.getElementById('repo-name').value;
+            const mrIid = parseInt(document.getElementById('mr-iid').value);
+            const commitSha = document.getElementById('commit-sha').value;
+            const filePath = document.getElementById('file-path').value;
+            const rawCode = document.getElementById('raw-code').value;
+            const diffCode = document.getElementById('diff-code').value;
+
+            // Generate standard GitLab MR webhook payload
+            const payload = {
+                "object_kind": "merge_request",
+                "project": {
+                    "id": 101,
+                    "name": repoName.split('/').pop(),
+                    "path_with_namespace": repoName,
+                    "web_url": `https://gitlab.com/${repoName}`
+                },
+                "object_attributes": {
+                    "id": 5001,
+                    "iid": mrIid,
+                    "source_project_id": 101,
+                    "target_project_id": 101,
+                    "source_branch": "feature/refactor",
+                    "target_branch": "main",
+                    "title": "Interactive Parsing Testing",
+                    "state": "opened",
+                    "last_commit": {
+                        "id": commitSha
+                    }
+                },
+                // Custom mock data hook handled by main.py
+                "_mock_data": {
+                    "file_path": filePath,
+                    "diff": diffCode,
+                    "raw_code": rawCode
+                }
+            };
+
+            // Display raw payload in UI
+            document.getElementById('payload-box').textContent = JSON.stringify(payload, null, 2);
+
+            try {
+                const response = await fetch('/webhook/gitlab', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Gitlab-Event': 'Merge Request Hook',
+                        'X-Gitlab-Token': 'super-secret-webhook-token'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const statusText = response.status + ' ' + response.statusText;
+                const result = await response.json();
+
+                // Display Server Response
+                document.getElementById('log-box').textContent = 
+                    `[HTTP STATUS]: ${statusText}\n\n` + 
+                    `[RESPONSE BODY]:\n${JSON.stringify(result, null, 2)}`;
+
+                // Run client-side AST parser parsing (to show visual cards)
+                // In production, the backend returns status, but we can do a secondary local parse
+                // OR we can make the backend return the list of parsed entities in a debug mode!
+                // Let's make the backend webhook respond with the parsed entities inside its response!
+                // That's an extremely elegant design!
+                if (response.ok && result.debug_entities) {
+                    renderEntities(result.debug_entities, result.changed_lines);
+                } else {
+                    // If backend doesn't return debug_entities (yet), show simulated entities
+                    simulateEntitiesInUI(rawCode, diffCode, repoName, filePath, mrIid);
+                }
+            } catch (err) {
+                document.getElementById('log-box').textContent = `Connection Error: ${err.message}`;
+            } finally {
+                triggerBtn.disabled = false;
+                triggerBtn.innerHTML = `
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                    Simulate Webhook Event
+                `;
+            }
+        });
+
+        // Client-side parser backup for direct visualization (in case backend index is mock-only)
+        function simulateEntitiesInUI(rawCode, diffCode, repoName, filePath, mrIid) {
+            // Parse diff changed lines in JS
+            const changedLines = new Set();
+            let currentLine = 0;
+            diffCode.split('\n').forEach(line => {
+                if (line.startsWith('@@')) {
+                    const parts = line.split(' ');
+                    if (parts.length >= 3) {
+                        const newRange = parts[2].replace('+', '');
+                        const start = parseInt(newRange.split(',')[0]);
+                        if (!isNaN(start)) currentLine = start;
+                    }
+                } else if (line.startsWith('+') && !line.startsWith('+++')) {
+                    changedLines.add(currentLine);
+                    currentLine++;
+                } else if (line.startsWith('-') && !line.startsWith('---')) {
+                    // skipped
+                } else {
+                    currentLine++;
+                }
+            });
+
+            // Very simple JS regex parser to visually represent python entities
+            const lines = rawCode.split('\n');
+            const entities = [];
+            
+            // Check imports
+            lines.forEach((line, index) => {
+                const lineNum = index + 1;
+                if (line.startsWith('import ') || line.startsWith('from ')) {
+                    let name = line.replace('import ', '').replace(/from\s+([\w\.]+)\s+import\s+([\w\.\,\s]+)/, '$1.$2');
+                    entities.append({
+                        entity_type: 'import',
+                        entity_name: name.trim(),
+                        start_line: lineNum,
+                        end_line: lineNum,
+                        code_snippet: line,
+                        dependencies: []
+                    });
+                }
+            });
+
+            // Find classes and methods
+            let currentClass = null;
+            let currentClassStart = 0;
+            let classMethods = [];
+
+            lines.forEach((line, index) => {
+                const lineNum = index + 1;
+                const classMatch = line.match(/^class\s+(\w+)/);
+                const defMatch = line.match(/^\s*def\s+(\w+)\((.*)\):/);
+
+                if (classMatch) {
+                    if (currentClass) {
+                        entities.push({
+                            entity_type: 'class',
+                            entity_name: currentClass,
+                            start_line: currentClassStart,
+                            end_line: lineNum - 1,
+                            code_snippet: lines.slice(currentClassStart - 1, lineNum - 1).join('\n'),
+                            dependencies: []
+                        });
+                    }
+                    currentClass = classMatch[1];
+                    currentClassStart = lineNum;
+                } else if (defMatch) {
+                    const funcName = defMatch[1];
+                    const isMethod = line.startsWith('    ');
+                    const fullName = currentClass && isMethod ? `${currentClass}.${funcName}` : funcName;
+                    
+                    // Simple dependency finder: check for method/function calls in block
+                    const deps = [];
+                    let endLine = lineNum;
+                    for (let i = index + 1; i < lines.length; i++) {
+                        const nextLine = lines[i];
+                        if (nextLine.trim() === '') continue;
+                        const indent = nextLine.search(/\S/);
+                        if ((isMethod && indent <= 4) || (!isMethod && indent <= 0)) {
+                            endLine = i;
+                            break;
+                        }
+                        // Find calls: func(args)
+                        const callMatches = nextLine.match(/(\w+(?:\.\w+)*)\(/g);
+                        if (callMatches) {
+                            callMatches.forEach(c => {
+                                const name = c.slice(0, -1);
+                                if (!['self', 'super', 'print', 'range', 'len', 'sum'].includes(name)) {
+                                    deps.push(name);
+                                }
+                            });
+                        }
+                    }
+                    if (endLine === lineNum) endLine = lines.length;
+
+                    entities.push({
+                        entity_type: 'function',
+                        entity_name: fullName,
+                        start_line: lineNum,
+                        end_line: endLine,
+                        code_snippet: lines.slice(index, endLine).join('\n'),
+                        dependencies: [...new Set(deps)]
+                    });
+                }
+            });
+
+            if (currentClass) {
+                entities.push({
+                    entity_type: 'class',
+                    entity_name: currentClass,
+                    start_line: currentClassStart,
+                    end_line: lines.length,
+                    code_snippet: lines.slice(currentClassStart - 1).join('\n'),
+                    dependencies: []
+                });
+            }
+
+            renderEntities(entities, Array.from(changedLines));
+        }
+
+        function renderEntities(entities, changedLinesList) {
+            const changedLines = new Set(changedLinesList);
+            const astEmpty = document.getElementById('ast-empty');
+            const astGrid = document.getElementById('ast-grid');
+            
+            astEmpty.style.display = 'none';
+            astGrid.style.display = 'grid';
+            astGrid.innerHTML = '';
+
+            entities.forEach(ent => {
+                const entRange = [];
+                for (let i = ent.start_line; i <= ent.end_line; i++) entRange.push(i);
+                const isModified = entRange.some(line => changedLines.has(line));
+
+                const card = document.createElement('div');
+                card.className = `ast-card ${isModified ? 'modified-entity' : ''}`;
+                
+                const badgeClass = `badge-${ent.entity_type}`;
+                const modBadge = isModified 
+                    ? `<span class="badge badge-modified">MODIFIED IN MR</span>`
+                    : `<span class="badge badge-unchanged">UNCHANGED</span>`;
+
+                let depsSection = '';
+                if (ent.dependencies && ent.dependencies.length > 0) {
+                    depsSection = `
+                        <div class="entity-deps">
+                            <span>Dependencies:</span>
+                            <ul>
+                                ${ent.dependencies.map(d => `<li class="dep-tag">${d}</li>`).join('')}
+                            </ul>
+                        </div>
+                    `;
+                }
+
+                card.innerHTML = `
+                    <div class="ast-header">
+                        <div class="entity-name-section">
+                            <span class="badge ${badgeClass}">${ent.entity_type}</span>
+                            <span class="entity-name">${ent.entity_name}</span>
+                        </div>
+                        ${modBadge}
+                    </div>
+                    <div class="entity-meta">
+                        <span>Lines: ${ent.start_line} - ${ent.end_line}</span>
+                    </div>
+                    ${depsSection}
+                    <button class="view-code-btn" onclick="viewCode('${btoa(unescape(encodeURIComponent(ent.code_snippet)))}', '${ent.entity_name}')">
+                        View Code Snippet
+                    </button>
+                `;
+                
+                astGrid.appendChild(card);
+            });
+        }
+
+        // Modal Code Viewer helpers
+        window.viewCode = function(encodedSnippet, entityName) {
+            const snippet = decodeURIComponent(escape(atob(encodedSnippet)));
+            document.getElementById('modal-title').textContent = `Entity Logic: ${entityName}`;
+            document.getElementById('modal-code').textContent = snippet;
+            document.getElementById('code-modal').style.display = 'flex';
+        };
+
+        window.closeModal = function() {
+            document.getElementById('code-modal').style.display = 'none';
+        };
+
+        // Close modal when clicking background
+        window.onclick = function(event) {
+            const modal = document.getElementById('code-modal');
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
